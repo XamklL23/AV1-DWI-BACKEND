@@ -15,13 +15,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class TicketService {
 
-    private final TicketRepository    ticketRepository;
-    private final UsuarioRepository   usuarioRepository;
-    private final EstadoRepository    estadoRepository;
+    private final TicketRepository ticketRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final EstadoRepository estadoRepository;
     private final PrioridadRepository prioridadRepository;
+    private final BitacoraRepository bitacoraRepository;
 
     public Page<Ticket> getAll(String estado, String prioridad, Pageable pageable) {
-        if (estado    != null) return ticketRepository.findByEstadoNombre(estado, pageable);
+        if (estado != null) return ticketRepository.findByEstadoNombre(estado, pageable);
         if (prioridad != null) return ticketRepository.findByPrioridadNombre(prioridad, pageable);
         return ticketRepository.findAll(pageable);
     }
@@ -33,6 +34,7 @@ public class TicketService {
     }
 
     public Ticket create(TicketCreateRequest req, UserDetails userDetails) {
+
         Usuario cliente = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Usuario no encontrado"));
@@ -52,11 +54,16 @@ public class TicketService {
         ticket.setEstado(estadoInicial);
         ticket.setPrioridad(prioridad);
 
-        return ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.save(ticket);
+
+        registrarBitacora(saved, null, estadoInicial, cliente, "Ticket creado");
+
+        return saved;
     }
 
     public Ticket update(Long id, TicketCreateRequest req) {
         Ticket existing = findById(id);
+
         existing.setTitulo(req.getTitulo());
         existing.setDescripcionInicial(req.getDescripcionInicial());
 
@@ -66,33 +73,78 @@ public class TicketService {
                             HttpStatus.NOT_FOUND, "Prioridad no encontrada"));
             existing.setPrioridad(prioridad);
         }
+
         return ticketRepository.save(existing);
     }
 
-    public Ticket updateEstado(Long ticketId, Long estadoId) {
+    // ✔️ FIX IMPORTANTE: ahora recibe 3 parámetros
+    public Ticket updateEstado(Long ticketId, Long estadoId, UserDetails userDetails) {
+
         Ticket ticket = findById(ticketId);
-        Estado estado = estadoRepository.findById(estadoId)
+        Estado anterior = ticket.getEstado();
+
+        Estado nuevo = estadoRepository.findById(estadoId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Estado no encontrado: " + estadoId));
-        ticket.setEstado(estado);
-        return ticketRepository.save(ticket);
+
+        Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        ticket.setEstado(nuevo);
+        Ticket saved = ticketRepository.save(ticket);
+
+        registrarBitacora(saved, anterior, nuevo, usuario, "Cambio de estado");
+
+        return saved;
     }
 
-    public Ticket asignar(Long ticketId, Long agenteId) {
+    // ✔️ FIX IMPORTANTE: ahora recibe 3 parámetros
+    public Ticket asignar(Long ticketId, Long agenteId, UserDetails userDetails) {
+
         Ticket ticket = findById(ticketId);
+        Estado anterior = ticket.getEstado();
+
         Usuario agente = usuarioRepository.findById(agenteId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Agente no encontrado: " + agenteId));
+                        HttpStatus.NOT_FOUND, "Agente no encontrado"));
+
+        Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow();
+
         ticket.setAgente(agente);
 
-        // Cambia estado a "En Proceso" automáticamente al asignar
-        estadoRepository.findByNombre("En Proceso")
-                .ifPresent(ticket::setEstado);
+        Estado enProceso = estadoRepository.findByNombre("En Proceso")
+                .orElse(null);
 
-        return ticketRepository.save(ticket);
+        if (enProceso != null) ticket.setEstado(enProceso);
+
+        Ticket saved = ticketRepository.save(ticket);
+
+        registrarBitacora(saved, anterior, enProceso, usuario,
+                "Asignado a agente: " + agente.getNombre());
+
+        return saved;
     }
 
     public void delete(Long id) {
         ticketRepository.delete(findById(id));
+    }
+
+    // ── BITÁCORA ─────────────────────────────
+    private void registrarBitacora(Ticket ticket,
+                                   Estado anterior,
+                                   Estado nuevo,
+                                   Usuario usuario,
+                                   String comentario) {
+
+        Bitacora bitacora = new Bitacora();
+        bitacora.setTicket(ticket);
+        bitacora.setEstadoAnterior(anterior);
+        bitacora.setEstadoNuevo(nuevo);
+        bitacora.setUsuario(usuario);
+        bitacora.setComentario(comentario);
+
+        bitacoraRepository.save(bitacora);
     }
 }

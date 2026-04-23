@@ -22,14 +22,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
 
-    @Mock private TicketRepository    ticketRepository;
-    @Mock private UsuarioRepository   usuarioRepository;
-    @Mock private EstadoRepository    estadoRepository;
+    @Mock private TicketRepository ticketRepository;
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private EstadoRepository estadoRepository;
     @Mock private PrioridadRepository prioridadRepository;
     @InjectMocks private TicketService ticketService;
 
+    // ─────────────────────────────────────────────
     @Test
     void whenCreateTicket_thenReturnSaved() {
+
         Usuario cliente = new Usuario();
         cliente.setEmail("cliente@test.com");
         cliente.setNombre("Cliente Test");
@@ -56,11 +58,15 @@ class TicketServiceTest {
 
         UserDetails ud = mock(UserDetails.class);
         when(ud.getUsername()).thenReturn("cliente@test.com");
+
         when(usuarioRepository.findByEmail("cliente@test.com"))
                 .thenReturn(Optional.of(cliente));
-        when(estadoRepository.findById(1L)).thenReturn(Optional.of(estado));
-        when(prioridadRepository.findById(2L)).thenReturn(Optional.of(prioridad));
-        when(ticketRepository.save(any())).thenReturn(savedTicket);
+        when(estadoRepository.findById(1L))
+                .thenReturn(Optional.of(estado));
+        when(prioridadRepository.findById(2L))
+                .thenReturn(Optional.of(prioridad));
+        when(ticketRepository.save(any()))
+                .thenReturn(savedTicket);
 
         Ticket result = ticketService.create(req, ud);
 
@@ -69,8 +75,13 @@ class TicketServiceTest {
         verify(ticketRepository, times(1)).save(any());
     }
 
+    // ─────────────────────────────────────────────
     @Test
     void whenUpdateEstado_thenEstadoCambia() {
+
+        UserDetails ud = mock(UserDetails.class);
+        when(ud.getUsername()).thenReturn("cliente@test.com");
+
         Ticket ticket = new Ticket();
         ticket.setTicketId(1L);
 
@@ -78,17 +89,30 @@ class TicketServiceTest {
         nuevoEstado.setEstadoId(2L);
         nuevoEstado.setNombre("En Proceso");
 
-        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
-        when(estadoRepository.findById(2L)).thenReturn(Optional.of(nuevoEstado));
-        when(ticketRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        Usuario usuario = new Usuario();
+        usuario.setEmail("cliente@test.com");
 
-        Ticket result = ticketService.updateEstado(1L, 2L);
+        when(ticketRepository.findById(1L))
+                .thenReturn(Optional.of(ticket));
+        when(estadoRepository.findById(2L))
+                .thenReturn(Optional.of(nuevoEstado));
+        when(usuarioRepository.findByEmail("cliente@test.com"))
+                .thenReturn(Optional.of(usuario));
+        when(ticketRepository.save(any()))
+                .thenAnswer(i -> i.getArgument(0));
+
+        Ticket result = ticketService.updateEstado(1L, 2L, ud);
 
         assertEquals("En Proceso", result.getEstado().getNombre());
     }
 
+    // ─────────────────────────────────────────────
     @Test
     void whenAsignarAgente_thenAgenteAsignado() {
+
+        UserDetails ud = mock(UserDetails.class);
+        when(ud.getUsername()).thenReturn("admin@test.com");
+
         Ticket ticket = new Ticket();
         ticket.setTicketId(1L);
 
@@ -99,21 +123,32 @@ class TicketServiceTest {
         Estado enProceso = new Estado();
         enProceso.setNombre("En Proceso");
 
-        when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket));
-        when(usuarioRepository.findById(5L)).thenReturn(Optional.of(agente));
+        Usuario usuario = new Usuario();
+        usuario.setEmail("admin@test.com");
+
+        when(ticketRepository.findById(1L))
+                .thenReturn(Optional.of(ticket));
+        when(usuarioRepository.findById(5L))
+                .thenReturn(Optional.of(agente));
+        when(usuarioRepository.findByEmail("admin@test.com"))
+                .thenReturn(Optional.of(usuario));
         when(estadoRepository.findByNombre("En Proceso"))
                 .thenReturn(Optional.of(enProceso));
-        when(ticketRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(ticketRepository.save(any()))
+                .thenAnswer(i -> i.getArgument(0));
 
-        Ticket result = ticketService.asignar(1L, 5L);
+        Ticket result = ticketService.asignar(1L, 5L, ud);
 
         assertEquals("Agente Test", result.getAgente().getNombre());
         assertEquals("En Proceso", result.getEstado().getNombre());
     }
 
+    // ─────────────────────────────────────────────
     @Test
     void whenTicketNotFound_thenThrowException() {
-        when(ticketRepository.findById(99L)).thenReturn(Optional.empty());
+
+        when(ticketRepository.findById(99L))
+                .thenReturn(Optional.empty());
 
         assertThrows(ResponseStatusException.class,
                 () -> ticketService.findById(99L));

@@ -21,61 +21,72 @@ public class TicketController {
 
     private final TicketService ticketService;
 
-    // ── GET ALL (paginado + filtros) ─────────────────────────
+    // ── GET ALL ─────────────────────────
     @GetMapping
     public ResponseEntity<Page<Ticket>> getAll(
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String prioridad,
             Pageable pageable) {
-        return ResponseEntity.ok(ticketService.getAll(estado, prioridad, pageable));
+
+        return ResponseEntity.ok(
+                ticketService.getAll(estado, prioridad, pageable)
+        );
     }
 
-    // ── GET BY ID ────────────────────────────────────────────
+    // ── GET BY ID ───────────────────────
     @GetMapping("/{id}")
     public ResponseEntity<Ticket> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ticketService.findById(id));
     }
 
-    // ── POST (crear) ─────────────────────────────────────────
+    // ── CREATE ──────────────────────────
     @PostMapping
     public ResponseEntity<Ticket> create(
             @Valid @RequestBody TicketCreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ticketService.create(request, userDetails));
-
     }
 
-    // ── PUT (actualizar completo) ─────────────────────────────
+    // ── UPDATE ──────────────────────────
     @PutMapping("/{id}")
     public ResponseEntity<Ticket> update(
             @PathVariable Long id,
             @Valid @RequestBody TicketCreateRequest request) {
+
         return ResponseEntity.ok(ticketService.update(id, request));
     }
 
-    // ── PATCH (cambiar estado) ────────────────────────────────
+    // ── CAMBIO DE ESTADO (CON BITÁCORA) ─────────────────────
     @PatchMapping("/{id}/estado/{estadoId}")
     public ResponseEntity<Ticket> updateEstado(
             @PathVariable Long id,
-            @PathVariable Long estadoId) {
-        return ResponseEntity.ok(ticketService.updateEstado(id, estadoId));
+            @PathVariable Long estadoId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        return ResponseEntity.ok(
+                ticketService.updateEstado(id, estadoId, userDetails)
+        );
     }
 
-    // ── PATCH (asignar agente) ────────────────────────────────
+    // ── ASIGNAR (CON BITÁCORA) ──────────────────────────────
     @PatchMapping("/{id}/asignar/{agenteId}")
     public ResponseEntity<Ticket> asignar(
             @PathVariable Long id,
-            @PathVariable Long agenteId) {
-        return ResponseEntity.ok(ticketService.asignar(id, agenteId));
+            @PathVariable Long agenteId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        return ResponseEntity.ok(
+                ticketService.asignar(id, agenteId, userDetails)
+        );
     }
 
-    // ── DELETE ───────────────────────────────────────────────
+    // ── DELETE ──────────────────────────
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('admin')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);
         return ResponseEntity.noContent().build();
     }
-
 }

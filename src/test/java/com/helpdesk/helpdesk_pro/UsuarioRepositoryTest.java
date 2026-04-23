@@ -37,7 +37,7 @@ class UsuarioRepositoryTest {
 
     @Test
     void whenFindByEmail_thenReturnUsuario() {
-        crearUsuario("Ana Lopez", "ana@test.com", Role.agente);
+        crearUsuario("Ana Lopez", "ana@test.com", Role.AGENTE);
 
         Optional<Usuario> result = usuarioRepository.findByEmail("ana@test.com");
 
