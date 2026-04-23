@@ -1,6 +1,7 @@
 package com.helpdesk.helpdesk_pro.service;
 
 import com.helpdesk.helpdesk_pro.entity.Usuario;
+import com.helpdesk.helpdesk_pro.enums.Role;
 import com.helpdesk.helpdesk_pro.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,7 +16,7 @@ import java.util.List;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
-    private final PasswordEncoder   passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public List<Usuario> findAll() {
         return usuarioRepository.findAll();
@@ -28,20 +29,41 @@ public class UsuarioService {
     }
 
     public Usuario register(Usuario usuario) {
+
+        if (usuario.getEmail() == null || usuario.getEmail().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "El email es obligatorio");
+        }
+
+        if (usuario.getPassword() == null || usuario.getPassword().isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "La contraseña es obligatoria");
+        }
+
         if (usuarioRepository.existsByEmail(usuario.getEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "El email ya está registrado");
         }
+
+        usuario.setRol(Role.valueOf("CLIENTE"));
+
         usuario.setPassword(passwordEncoder.encode(usuario.getPassword()));
+
         return usuarioRepository.save(usuario);
     }
 
     public Usuario update(Long id, Usuario data) {
+
         Usuario existing = findById(id);
-        existing.setNombre(data.getNombre());
+
+        if (data.getNombre() != null && !data.getNombre().isBlank()) {
+            existing.setNombre(data.getNombre());
+        }
+
         if (data.getPassword() != null && !data.getPassword().isBlank()) {
             existing.setPassword(passwordEncoder.encode(data.getPassword()));
         }
+
         return usuarioRepository.save(existing);
     }
 

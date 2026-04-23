@@ -1,6 +1,7 @@
 package com.helpdesk.helpdesk_pro.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.helpdesk.helpdesk_pro.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -31,28 +32,29 @@ public class Usuario implements UserDetails {
     @Column(unique = true, nullable = false, length = 150)
     private String email;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "password_hash", nullable = false, columnDefinition = "TEXT")
-    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "user_role")
-    private Role rol = Role.cliente;
+    @Column(name = "rol")
+    private Role rol = Role.CLIENTE;
 
     @CreationTimestamp
     @Column(name = "fecha_registro")
     private OffsetDateTime fechaRegistro;
 
-    // ── UserDetails ──────────────────────────────────────────
     @Override
     @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_" + rol.name().toUpperCase())
+        );
     }
 
-    @Override @JsonIgnore public String  getUsername()              { return email; }
-    @Override @JsonIgnore public boolean isAccountNonExpired()      { return true; }
-    @Override @JsonIgnore public boolean isAccountNonLocked()       { return true; }
-    @Override @JsonIgnore public boolean isCredentialsNonExpired()  { return true; }
-    @Override @JsonIgnore public boolean isEnabled()                { return true; }
+    @Override @JsonIgnore public String getUsername() { return email; }
+    @Override @JsonIgnore public boolean isAccountNonExpired() { return true; }
+    @Override @JsonIgnore public boolean isAccountNonLocked() { return true; }
+    @Override @JsonIgnore public boolean isCredentialsNonExpired() { return true; }
+    @Override @JsonIgnore public boolean isEnabled() { return true; }
 }

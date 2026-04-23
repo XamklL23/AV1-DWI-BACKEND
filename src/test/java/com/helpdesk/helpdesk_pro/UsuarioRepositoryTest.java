@@ -28,11 +28,11 @@ class UsuarioRepositoryTest {
 
     @Test
     void whenSaveUsuario_thenFindById() {
-        Usuario saved = crearUsuario("Juan Perez", "juan@test.com", Role.cliente);
+        Usuario saved = crearUsuario("Juan Perez", "juan@test.com", Role.CLIENTE);
 
         assertNotNull(saved.getUsuarioId());
         assertEquals("Juan Perez", saved.getNombre());
-        assertEquals(Role.cliente, saved.getRol());
+        assertEquals(Role.CLIENTE, saved.getRol());
     }
 
     @Test
@@ -53,17 +53,17 @@ class UsuarioRepositoryTest {
 
     @Test
     void whenExistsByEmail_thenReturnTrue() {
-        crearUsuario("Carlos", "carlos@test.com", Role.cliente);
+        crearUsuario("Carlos", "carlos@test.com", Role.CLIENTE);
         assertTrue(usuarioRepository.existsByEmail("carlos@test.com"));
     }
 
     @Test
     void whenFindByRol_thenReturnList() {
-        crearUsuario("Agente1", "agente1@test.com", Role.agente);
-        crearUsuario("Agente2", "agente2@test.com", Role.agente);
-        crearUsuario("Cliente1", "cliente1@test.com", Role.cliente);
+        crearUsuario("Agente1", "agente1@test.com", Role.AGENTE);
+        crearUsuario("Agente2", "agente2@test.com", Role.AGENTE);
+        crearUsuario("Cliente1", "cliente1@test.com", Role.CLIENTE);
 
-        List<Usuario> agentes = usuarioRepository.findByRol(Role.agente);
+        List<Usuario> agentes = usuarioRepository.findByRol(Role.AGENTE);
 
         assertEquals(2, agentes.size());
     }

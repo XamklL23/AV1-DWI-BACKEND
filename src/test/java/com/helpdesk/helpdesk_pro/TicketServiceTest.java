@@ -33,7 +33,7 @@ class TicketServiceTest {
         Usuario cliente = new Usuario();
         cliente.setEmail("cliente@test.com");
         cliente.setNombre("Cliente Test");
-        cliente.setRol(Role.cliente);
+        cliente.setRol(Role.CLIENTE);
 
         Estado estado = new Estado();
         estado.setEstadoId(1L);

@@ -14,10 +14,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UsuarioService usuarioService; // ← UserService → UsuarioService
+    private final UsuarioService usuarioService;
 
     @GetMapping
-    @PreAuthorize("hasRole('admin')") // ← 'ADMIN' → 'admin'
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<List<Usuario>> findAll() {
         return ResponseEntity.ok(usuarioService.findAll());
     }

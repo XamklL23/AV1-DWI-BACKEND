@@ -42,7 +42,7 @@ class TicketRepositoryTest {
         cliente.setNombre("Cliente Test");
         cliente.setEmail("cliente@test.com");
         cliente.setPassword("hash123");
-        cliente.setRol(Role.cliente);
+        cliente.setRol(Role.CLIENTE);
         cliente = usuarioRepository.save(cliente);
     }
 
