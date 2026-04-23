@@ -5,29 +5,31 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "comentarios")
 @Data
 @NoArgsConstructor
-public class AuditLog {
+public class Comentario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "comentario_id")
+    private Long comentarioId;
 
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
 
     @ManyToOne
-    @JoinColumn(name = "performed_by")
-    private User performedBy;
+    @JoinColumn(name = "autor_id")
+    private Usuario autor;
 
-    private String action;        // "STATUS_CHANGED", "ASSIGNED", "COMMENTED"
-    private String previousValue;
-    private String newValue;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String contenido;
 
     @CreationTimestamp
-    private LocalDateTime timestamp;
+    @Column(name = "fecha_creacion")
+    private OffsetDateTime fechaCreacion;
 }

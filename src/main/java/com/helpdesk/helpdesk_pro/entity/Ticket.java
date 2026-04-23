@@ -1,14 +1,13 @@
 package com.helpdesk.helpdesk_pro.entity;
 
-import com.helpdesk.helpdesk_pro.enums.TicketPriority;
-import com.helpdesk.helpdesk_pro.enums.TicketStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Entity
@@ -16,46 +15,43 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class Ticket {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "ticket_id")
+    private Long ticketId;
 
-    private String ticketNumber; // TKT-2024-001
+    @Column(nullable = false, length = 200)
+    private String titulo;
 
-    @Column(nullable = false)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Enumerated(EnumType.STRING)
-    private TicketStatus status = TicketStatus.NUEVO;
-
-    @Enumerated(EnumType.STRING)
-    private TicketPriority priority;
+    @Column(name = "descripcion_inicial", nullable = false, columnDefinition = "TEXT")
+    private String descripcionInicial;
 
     @ManyToOne
-    @JoinColumn(name = "created_by")
-    private User createdBy;
+    @JoinColumn(name = "cliente_id")
+    private Usuario cliente;
 
     @ManyToOne
-    @JoinColumn(name = "assigned_to")
-    private User assignedTo;
+    @JoinColumn(name = "agente_id")
+    private Usuario agente;
 
     @ManyToOne
-    private Category category;
+    @JoinColumn(name = "estado_id")
+    private Estado estado;
 
-    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL)
-    private List<Comment> comments;
-
-    @ElementCollection
-    private List<String> tags;
+    @ManyToOne
+    @JoinColumn(name = "prioridad_id")
+    private Prioridad prioridad;
 
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(name = "fecha_creacion")
+    private OffsetDateTime fechaCreacion;
 
     @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @Column(name = "fecha_actualizacion")
+    private OffsetDateTime fechaActualizacion;
 
-    private LocalDateTime slaDeadline;
+    @JsonIgnore  // ← evita referencia circular Ticket → Comentario → Ticket
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL)
+    private List<Comentario> comentarios;
 }

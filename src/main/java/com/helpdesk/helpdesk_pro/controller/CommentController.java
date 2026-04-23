@@ -1,10 +1,10 @@
 package com.helpdesk.helpdesk_pro.controller;
 
-import com.helpdesk.helpdesk_pro.entity.Comment;
+import com.helpdesk.helpdesk_pro.entity.Comentario;
 import com.helpdesk.helpdesk_pro.entity.Ticket;
-import com.helpdesk.helpdesk_pro.entity.User;
-import com.helpdesk.helpdesk_pro.repository.CommentRepository;
-import com.helpdesk.helpdesk_pro.repository.UserRepository;
+import com.helpdesk.helpdesk_pro.entity.Usuario;
+import com.helpdesk.helpdesk_pro.repository.ComentarioRepository;
+import com.helpdesk.helpdesk_pro.repository.UsuarioRepository;
 import com.helpdesk.helpdesk_pro.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,35 +20,36 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CommentController {
 
-    private final CommentRepository commentRepository;
-    private final TicketService ticketService;
-    private final UserRepository userRepository;
+    private final ComentarioRepository comentarioRepository;
+    private final TicketService        ticketService;
+    private final UsuarioRepository    usuarioRepository;
 
     @GetMapping
-    public ResponseEntity<List<Comment>> getByTicket(
+    public ResponseEntity<List<Comentario>> getByTicket(
             @PathVariable Long ticketId) {
         return ResponseEntity.ok(
-                commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId));
+                // ← nombre correcto del método en ComentarioRepository
+                comentarioRepository.findByTicketTicketIdOrderByFechaCreacionAsc(ticketId));
     }
 
     @PostMapping
-    public ResponseEntity<Comment> create(
+    public ResponseEntity<Comentario> create(
             @PathVariable Long ticketId,
-            @RequestBody Comment comment,
+            @RequestBody Comentario comentario,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         Ticket ticket = ticketService.findById(ticketId);
-        User author = userRepository.findByEmail(userDetails.getUsername())
+        Usuario autor = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow();
-        comment.setTicket(ticket);
-        comment.setAuthor(author);
+        comentario.setTicket(ticket);
+        comentario.setAutor(autor);  // ← setAutor() no setAuthor()
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(commentRepository.save(comment));
+                .body(comentarioRepository.save(comentario));
     }
 
-    @DeleteMapping("/{commentId}")
-    public ResponseEntity<Void> delete(@PathVariable Long commentId) {
-        commentRepository.deleteById(commentId);
+    @DeleteMapping("/{comentarioId}")
+    public ResponseEntity<Void> delete(@PathVariable Long comentarioId) {
+        comentarioRepository.deleteById(comentarioId);
         return ResponseEntity.noContent().build();
     }
 }

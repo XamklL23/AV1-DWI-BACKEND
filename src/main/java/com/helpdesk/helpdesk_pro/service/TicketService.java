@@ -1,11 +1,8 @@
 package com.helpdesk.helpdesk_pro.service;
 
-import com.helpdesk.helpdesk_pro.entity.Ticket;
-import com.helpdesk.helpdesk_pro.entity.User;
-import com.helpdesk.helpdesk_pro.enums.TicketPriority;
-import com.helpdesk.helpdesk_pro.enums.TicketStatus;
-import com.helpdesk.helpdesk_pro.repository.TicketRepository;
-import com.helpdesk.helpdesk_pro.repository.UserRepository;
+import com.helpdesk.helpdesk_pro.dto.request.TicketCreateRequest;
+import com.helpdesk.helpdesk_pro.entity.*;
+import com.helpdesk.helpdesk_pro.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,67 +11,88 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Year;
-
 @Service
 @RequiredArgsConstructor
 public class TicketService {
 
-    private final TicketRepository ticketRepo;
-    private final UserRepository userRepo;
+    private final TicketRepository    ticketRepository;
+    private final UsuarioRepository   usuarioRepository;
+    private final EstadoRepository    estadoRepository;
+    private final PrioridadRepository prioridadRepository;
 
-    public Page<Ticket> getAll(TicketStatus status,
-                               TicketPriority priority,
-                               Pageable pageable) {
-        if (status != null)   return ticketRepo.findByStatus(status, pageable);
-        if (priority != null) return ticketRepo.findByPriority(priority, pageable);
-        return ticketRepo.findAll(pageable);
+    public Page<Ticket> getAll(String estado, String prioridad, Pageable pageable) {
+        if (estado    != null) return ticketRepository.findByEstadoNombre(estado, pageable);
+        if (prioridad != null) return ticketRepository.findByPrioridadNombre(prioridad, pageable);
+        return ticketRepository.findAll(pageable);
     }
 
     public Ticket findById(Long id) {
-        return ticketRepo.findById(id)
+        return ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Ticket no encontrado: " + id));
     }
 
-    public Ticket create(Ticket ticket, UserDetails userDetails) {
-        User creator = userRepo.findByEmail(userDetails.getUsername())
-                .orElseThrow();
-        ticket.setCreatedBy(creator);
-        ticket.setStatus(TicketStatus.NUEVO);
-        ticket.setTicketNumber(generateNumber());
-        return ticketRepo.save(ticket);
+    public Ticket create(TicketCreateRequest req, UserDetails userDetails) {
+        Usuario cliente = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        Estado estadoInicial = estadoRepository.findById(1L)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Estado inicial no encontrado"));
+
+        Prioridad prioridad = prioridadRepository.findById(req.getPrioridadId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Prioridad no encontrada"));
+
+        Ticket ticket = new Ticket();
+        ticket.setTitulo(req.getTitulo());
+        ticket.setDescripcionInicial(req.getDescripcionInicial());
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoInicial);
+        ticket.setPrioridad(prioridad);
+
+        return ticketRepository.save(ticket);
     }
 
-    public Ticket update(Long id, Ticket data) {
+    public Ticket update(Long id, TicketCreateRequest req) {
         Ticket existing = findById(id);
-        existing.setTitle(data.getTitle());
-        existing.setDescription(data.getDescription());
-        existing.setPriority(data.getPriority());
-        existing.setTags(data.getTags());
-        return ticketRepo.save(existing);
+        existing.setTitulo(req.getTitulo());
+        existing.setDescripcionInicial(req.getDescripcionInicial());
+
+        if (req.getPrioridadId() != null) {
+            Prioridad prioridad = prioridadRepository.findById(req.getPrioridadId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Prioridad no encontrada"));
+            existing.setPrioridad(prioridad);
+        }
+        return ticketRepository.save(existing);
     }
 
-    public Ticket updateStatus(Long id, TicketStatus status) {
-        Ticket ticket = findById(id);
-        ticket.setStatus(status);
-        return ticketRepo.save(ticket);
-    }
-
-    public Ticket assign(Long ticketId, Long agentId) {
+    public Ticket updateEstado(Long ticketId, Long estadoId) {
         Ticket ticket = findById(ticketId);
-        User agent = userRepo.findById(agentId).orElseThrow();
-        ticket.setAssignedTo(agent);
-        ticket.setStatus(TicketStatus.ASIGNADO);
-        return ticketRepo.save(ticket);
+        Estado estado = estadoRepository.findById(estadoId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Estado no encontrado: " + estadoId));
+        ticket.setEstado(estado);
+        return ticketRepository.save(ticket);
+    }
+
+    public Ticket asignar(Long ticketId, Long agenteId) {
+        Ticket ticket = findById(ticketId);
+        Usuario agente = usuarioRepository.findById(agenteId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Agente no encontrado: " + agenteId));
+        ticket.setAgente(agente);
+
+        // Cambia estado a "En Proceso" automáticamente al asignar
+        estadoRepository.findByNombre("En Proceso")
+                .ifPresent(ticket::setEstado);
+
+        return ticketRepository.save(ticket);
     }
 
     public void delete(Long id) {
-        ticketRepo.delete(findById(id));
-    }
-
-    private String generateNumber() {
-        return "TKT-" + Year.now().getValue() + "-"
-                + String.format("%03d", ticketRepo.count() + 1);
+        ticketRepository.delete(findById(id));
     }
 }

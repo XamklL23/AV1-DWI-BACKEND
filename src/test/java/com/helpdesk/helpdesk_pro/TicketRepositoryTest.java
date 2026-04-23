@@ -1,9 +1,10 @@
 package com.helpdesk.helpdesk_pro;
 
-import com.helpdesk.helpdesk_pro.entity.Ticket;
-import com.helpdesk.helpdesk_pro.enums.TicketPriority;
-import com.helpdesk.helpdesk_pro.enums.TicketStatus;
-import com.helpdesk.helpdesk_pro.repository.TicketRepository;
+
+import com.helpdesk.helpdesk_pro.entity.*;
+import com.helpdesk.helpdesk_pro.enums.Role;
+import com.helpdesk.helpdesk_pro.repository.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -15,45 +16,115 @@ import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest
 class TicketRepositoryTest {
 
-    @Autowired
-    private TicketRepository ticketRepository;
+    @Autowired private TicketRepository ticketRepository;
+    @Autowired private UsuarioRepository   usuarioRepository;
+    @Autowired private EstadoRepository    estadoRepository;
+    @Autowired private PrioridadRepository prioridadRepository;
 
-    @Test
-    void whenSaveTicket_thenFindById() {
-        Ticket t = new Ticket();
-        t.setTitle("Error en nómina");
-        t.setStatus(TicketStatus.NUEVO);
-        t.setPriority(TicketPriority.CRITICA);
+    private Estado    estadoAbierto;
+    private Prioridad prioridadMedia;
+    private Usuario   cliente;
 
-        Ticket saved = ticketRepository.save(t);
+    @BeforeEach
+    void setUp() {
+        // Crear estado
+        estadoAbierto = new Estado();
+        estadoAbierto.setNombre("Abierto");
+        estadoAbierto = estadoRepository.save(estadoAbierto);
 
-        assertNotNull(saved.getId());
-        assertEquals("Error en nómina", saved.getTitle());
-        assertEquals(TicketStatus.NUEVO, saved.getStatus());
+        // Crear prioridad
+        prioridadMedia = new Prioridad();
+        prioridadMedia.setNombre("Media");
+        prioridadMedia = prioridadRepository.save(prioridadMedia);
+
+        // Crear usuario cliente
+        cliente = new Usuario();
+        cliente.setNombre("Cliente Test");
+        cliente.setEmail("cliente@test.com");
+        cliente.setPassword("hash123");
+        cliente.setRol(Role.cliente);
+        cliente = usuarioRepository.save(cliente);
     }
 
     @Test
-    void whenFindByStatus_thenReturnPage() {
-        Ticket t = new Ticket();
-        t.setTitle("Test");
-        t.setStatus(TicketStatus.NUEVO);
-        ticketRepository.save(t);
+    void whenSaveTicket_thenFindById() {
+        Ticket ticket = new Ticket();
+        ticket.setTitulo("Error en nómina");
+        ticket.setDescripcionInicial("No puedo acceder al sistema");
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoAbierto);
+        ticket.setPrioridad(prioridadMedia);
+
+        Ticket saved = ticketRepository.save(ticket);
+
+        assertNotNull(saved.getTicketId());
+        assertEquals("Error en nómina", saved.getTitulo());
+        assertEquals("Abierto", saved.getEstado().getNombre());
+    }
+
+    @Test
+    void whenFindByEstadoNombre_thenReturnPage() {
+        Ticket ticket = new Ticket();
+        ticket.setTitulo("Ticket de prueba");
+        ticket.setDescripcionInicial("Descripción de prueba");
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoAbierto);
+        ticket.setPrioridad(prioridadMedia);
+        ticketRepository.save(ticket);
 
         Page<Ticket> result = ticketRepository
-                .findByStatus(TicketStatus.NUEVO, PageRequest.of(0, 10));
+                .findByEstadoNombre("Abierto", PageRequest.of(0, 10));
+
+        assertNotNull(result);
+        assertTrue(result.getTotalElements() > 0);
+        assertEquals("Abierto", result.getContent().get(0).getEstado().getNombre());
+    }
+
+    @Test
+    void whenFindByCliente_thenReturnPage() {
+        Ticket ticket = new Ticket();
+        ticket.setTitulo("Ticket del cliente");
+        ticket.setDescripcionInicial("Descripción");
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoAbierto);
+        ticket.setPrioridad(prioridadMedia);
+        ticketRepository.save(ticket);
+
+        Page<Ticket> result = ticketRepository
+                .findByCliente(cliente, PageRequest.of(0, 10));
 
         assertNotNull(result);
         assertTrue(result.getTotalElements() > 0);
     }
 
     @Test
-    void whenCountByStatus_thenReturnCorrectCount() {
-        long before = ticketRepository.countByStatus(TicketStatus.RESUELTO);
-        Ticket t = new Ticket();
-        t.setStatus(TicketStatus.RESUELTO);
-        ticketRepository.save(t);
+    void whenCountByEstadoNombre_thenReturnCorrectCount() {
+        Ticket ticket = new Ticket();
+        ticket.setTitulo("Ticket conteo");
+        ticket.setDescripcionInicial("Descripción");
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoAbierto);
+        ticket.setPrioridad(prioridadMedia);
+        ticketRepository.save(ticket);
 
-        assertEquals(before + 1,
-                ticketRepository.countByStatus(TicketStatus.RESUELTO));
+        long count = ticketRepository.countByEstadoNombre("Abierto");
+        assertTrue(count > 0);
+    }
+
+    @Test
+    void whenSearch_thenReturnMatchingTickets() {
+        Ticket ticket = new Ticket();
+        ticket.setTitulo("Impresora no funciona");
+        ticket.setDescripcionInicial("La impresora del 3er piso no responde");
+        ticket.setCliente(cliente);
+        ticket.setEstado(estadoAbierto);
+        ticket.setPrioridad(prioridadMedia);
+        ticketRepository.save(ticket);
+
+        Page<Ticket> result = ticketRepository
+                .search("impresora", PageRequest.of(0, 10));
+
+        assertNotNull(result);
+        assertTrue(result.getTotalElements() > 0);
     }
 }

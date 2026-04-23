@@ -1,24 +1,22 @@
 package com.helpdesk.helpdesk_pro.dto.response;
 
-import com.helpdesk.helpdesk_pro.entity.User;
-import lombok.AllArgsConstructor;
+import com.helpdesk.helpdesk_pro.entity.Usuario;
 import lombok.Data;
 
 @Data
-@AllArgsConstructor
 public class JwtResponse {
     private String token;
     private String type = "Bearer";
     private Long   id;
     private String email;
-    private String fullName;
-    private String role;
+    private String nombre;
+    private String rol;
 
-    public JwtResponse(String token, User user) {
-        this.token    = token;
-        this.id       = user.getId();
-        this.email    = user.getEmail();
-        this.fullName = user.getFullName();
-        this.role     = user.getRole().name();
+    public JwtResponse(String token, Usuario usuario) {
+        this.token  = token;
+        this.id     = usuario.getUsuarioId();
+        this.email  = usuario.getEmail();
+        this.nombre = usuario.getNombre();
+        this.rol    = usuario.getRol().name();
     }
 }
