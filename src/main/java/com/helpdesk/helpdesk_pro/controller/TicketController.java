@@ -43,6 +43,7 @@ public class TicketController {
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ticketService.create(request, userDetails));
+
     }
 
     // ── PUT (actualizar completo) ─────────────────────────────
@@ -76,4 +77,5 @@ public class TicketController {
         ticketService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
 }
