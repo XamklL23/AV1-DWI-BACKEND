@@ -26,7 +26,14 @@ public class TicketController {
     public ResponseEntity<Page<Ticket>> getAll(
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String prioridad,
+            @RequestParam(required = false) String search,
             Pageable pageable) {
+
+        if (search != null && !search.isBlank()) {
+            return ResponseEntity.ok(
+                    ticketService.search(search, pageable)
+            );
+        }
 
         return ResponseEntity.ok(
                 ticketService.getAll(estado, prioridad, pageable)
@@ -84,7 +91,7 @@ public class TicketController {
 
     // ── DELETE ──────────────────────────
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('ADMIN','CLIENTE','AGENTE')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);
         return ResponseEntity.noContent().build();

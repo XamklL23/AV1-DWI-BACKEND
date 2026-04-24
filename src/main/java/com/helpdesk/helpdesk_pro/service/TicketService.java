@@ -22,9 +22,23 @@ public class TicketService {
     private final BitacoraRepository bitacoraRepository;
 
     public Page<Ticket> getAll(String estado, String prioridad, Pageable pageable) {
-        if (estado != null) return ticketRepository.findByEstadoNombre(estado, pageable);
-        if (prioridad != null) return ticketRepository.findByPrioridadNombre(prioridad, pageable);
+        if (estado != null && !estado.isBlank()) {
+            return ticketRepository.findByEstadoNombre(estado, pageable);
+        }
+        if (prioridad != null && !prioridad.isBlank()) {
+            return ticketRepository.findByPrioridadNombre(prioridad, pageable);
+        }
         return ticketRepository.findAll(pageable);
+    }
+
+    public Page<Ticket> search(String search, Pageable pageable) {
+        return ticketRepository
+                .findByTituloContainingIgnoreCaseOrDescripcionInicialContainingIgnoreCaseOrCliente_NombreContainingIgnoreCase(
+                        search,
+                        search,
+                        search,
+                        pageable
+                );
     }
 
     public Ticket findById(Long id) {
@@ -77,7 +91,6 @@ public class TicketService {
         return ticketRepository.save(existing);
     }
 
-    // ✔️ FIX IMPORTANTE: ahora recibe 3 parámetros
     public Ticket updateEstado(Long ticketId, Long estadoId, UserDetails userDetails) {
 
         Ticket ticket = findById(ticketId);
@@ -99,7 +112,6 @@ public class TicketService {
         return saved;
     }
 
-    // ✔️ FIX IMPORTANTE: ahora recibe 3 parámetros
     public Ticket asignar(Long ticketId, Long agenteId, UserDetails userDetails) {
 
         Ticket ticket = findById(ticketId);
@@ -110,14 +122,17 @@ public class TicketService {
                         HttpStatus.NOT_FOUND, "Agente no encontrado"));
 
         Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow();
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         ticket.setAgente(agente);
 
         Estado enProceso = estadoRepository.findByNombre("En Proceso")
                 .orElse(null);
 
-        if (enProceso != null) ticket.setEstado(enProceso);
+        if (enProceso != null) {
+            ticket.setEstado(enProceso);
+        }
 
         Ticket saved = ticketRepository.save(ticket);
 
@@ -131,7 +146,6 @@ public class TicketService {
         ticketRepository.delete(findById(id));
     }
 
-    // ── BITÁCORA ─────────────────────────────
     private void registrarBitacora(Ticket ticket,
                                    Estado anterior,
                                    Estado nuevo,

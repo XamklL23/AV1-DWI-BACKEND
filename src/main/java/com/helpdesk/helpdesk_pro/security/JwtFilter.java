@@ -31,33 +31,50 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             String header = request.getHeader("Authorization");
 
+            System.out.println("🔐 HEADER: " + header);
+
             if (header == null || !header.startsWith("Bearer ")) {
+                System.out.println("⛔ No hay token o formato incorrecto");
                 chain.doFilter(request, response);
                 return;
             }
 
-            String token    = header.substring(7).trim();
+            String token = header.substring(7).trim();
+            System.out.println("🧾 TOKEN: " + token);
+
             String username = jwtUtil.extractUsername(token);
+            System.out.println("👤 USERNAME EXTRAÍDO: " + username);
 
             if (username != null &&
                     SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 UserDetails user = userDetailsService.loadUserByUsername(username);
+                System.out.println("USER DETAILS: " + user.getUsername());
 
-                if (jwtUtil.isValid(token, user)) {
+                boolean valido = jwtUtil.isValid(token, user);
+                System.out.println("TOKEN VÁLIDO?: " + valido);
+
+                if (valido) {
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     user, null, user.getAuthorities());
+
                     auth.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
+
                     SecurityContextHolder.getContext().setAuthentication(auth);
+
+                    System.out.println("USUARIO AUTENTICADO CORRECTAMENTE");
+                } else {
+                    System.out.println("TOKEN INVÁLIDO");
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("JWT Filter error: " + e.getMessage());
+            System.err.println("ERROR EN JWT FILTER: " + e.getMessage());
         }
 
         chain.doFilter(request, response);
     }
+
 }

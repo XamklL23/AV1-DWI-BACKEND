@@ -32,15 +32,18 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults()) // 🔥 OBLIGATORIO
+                .cors(Customizer.withDefaults())
                 .sessionManagement(sm ->
                         sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // 🔥 FIX CORS PRE-FLIGHT
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/tickets/**")
+                        .hasAnyRole("ADMIN", "CLIENTE", "AGENTE")
+
                         .requestMatchers("/api/dashboard/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -48,7 +51,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 🔥 CORS GLOBAL
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

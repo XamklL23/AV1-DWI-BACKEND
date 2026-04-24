@@ -1,6 +1,5 @@
 package com.helpdesk.helpdesk_pro;
 
-
 import com.helpdesk.helpdesk_pro.entity.*;
 import com.helpdesk.helpdesk_pro.enums.Role;
 import com.helpdesk.helpdesk_pro.repository.*;
@@ -17,27 +16,24 @@ import static org.junit.jupiter.api.Assertions.*;
 class TicketRepositoryTest {
 
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private UsuarioRepository   usuarioRepository;
-    @Autowired private EstadoRepository    estadoRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
+    @Autowired private EstadoRepository estadoRepository;
     @Autowired private PrioridadRepository prioridadRepository;
 
-    private Estado    estadoAbierto;
+    private Estado estadoAbierto;
     private Prioridad prioridadMedia;
-    private Usuario   cliente;
+    private Usuario cliente;
 
     @BeforeEach
     void setUp() {
-        // Crear estado
         estadoAbierto = new Estado();
         estadoAbierto.setNombre("Abierto");
         estadoAbierto = estadoRepository.save(estadoAbierto);
 
-        // Crear prioridad
         prioridadMedia = new Prioridad();
         prioridadMedia.setNombre("Media");
         prioridadMedia = prioridadRepository.save(prioridadMedia);
 
-        // Crear usuario cliente
         cliente = new Usuario();
         cliente.setNombre("Cliente Test");
         cliente.setEmail("cliente@test.com");
@@ -72,8 +68,8 @@ class TicketRepositoryTest {
         ticket.setPrioridad(prioridadMedia);
         ticketRepository.save(ticket);
 
-        Page<Ticket> result = ticketRepository
-                .findByEstadoNombre("Abierto", PageRequest.of(0, 10));
+        Page<Ticket> result =
+                ticketRepository.findByEstadoNombre("Abierto", PageRequest.of(0, 10));
 
         assertNotNull(result);
         assertTrue(result.getTotalElements() > 0);
@@ -90,8 +86,8 @@ class TicketRepositoryTest {
         ticket.setPrioridad(prioridadMedia);
         ticketRepository.save(ticket);
 
-        Page<Ticket> result = ticketRepository
-                .findByCliente(cliente, PageRequest.of(0, 10));
+        Page<Ticket> result =
+                ticketRepository.findByCliente(cliente, PageRequest.of(0, 10));
 
         assertNotNull(result);
         assertTrue(result.getTotalElements() > 0);
@@ -121,8 +117,14 @@ class TicketRepositoryTest {
         ticket.setPrioridad(prioridadMedia);
         ticketRepository.save(ticket);
 
-        Page<Ticket> result = ticketRepository
-                .search("impresora", PageRequest.of(0, 10));
+        Page<Ticket> result =
+                ticketRepository
+                        .findByTituloContainingIgnoreCaseOrDescripcionInicialContainingIgnoreCaseOrCliente_NombreContainingIgnoreCase(
+                                "impresora",
+                                "impresora",
+                                "impresora",
+                                PageRequest.of(0, 10)
+                        );
 
         assertNotNull(result);
         assertTrue(result.getTotalElements() > 0);
