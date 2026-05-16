@@ -9,46 +9,35 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
 public class TicketService {
 
-    private final TicketRepository ticketRepository;
-    private final UsuarioRepository usuarioRepository;
-    private final EstadoRepository estadoRepository;
+    private final TicketRepository    ticketRepository;
+    private final UsuarioRepository   usuarioRepository;
+    private final EstadoRepository    estadoRepository;
     private final PrioridadRepository prioridadRepository;
-    private final BitacoraRepository bitacoraRepository;
+    private final BitacoraRepository  bitacoraRepository;
 
+    @Transactional(readOnly = true)
     public Page<Ticket> getAll(String estado, String prioridad, Pageable pageable) {
-        if (estado != null && !estado.isBlank()) {
-            return ticketRepository.findByEstadoNombre(estado, pageable);
-        }
-        if (prioridad != null && !prioridad.isBlank()) {
-            return ticketRepository.findByPrioridadNombre(prioridad, pageable);
-        }
+        if (estado    != null) return ticketRepository.findByEstadoNombre(estado, pageable);
+        if (prioridad != null) return ticketRepository.findByPrioridadNombre(prioridad, pageable);
         return ticketRepository.findAll(pageable);
     }
 
-    public Page<Ticket> search(String search, Pageable pageable) {
-        return ticketRepository
-                .findByTituloContainingIgnoreCaseOrDescripcionInicialContainingIgnoreCaseOrCliente_NombreContainingIgnoreCase(
-                        search,
-                        search,
-                        search,
-                        pageable
-                );
-    }
-
+    @Transactional(readOnly = true)
     public Ticket findById(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Ticket no encontrado: " + id));
     }
 
+    @Transactional
     public Ticket create(TicketCreateRequest req, UserDetails userDetails) {
-
         Usuario cliente = usuarioRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Usuario no encontrado"));
@@ -75,8 +64,11 @@ public class TicketService {
         return saved;
     }
 
-    public Ticket update(Long id, TicketCreateRequest req) {
+    @Transactional
+    public Ticket update(Long id, TicketCreateRequest req, UserDetails userDetails) {
         Ticket existing = findById(id);
+        Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow();
 
         existing.setTitulo(req.getTitulo());
         existing.setDescripcionInicial(req.getDescripcionInicial());
@@ -88,77 +80,92 @@ public class TicketService {
             existing.setPrioridad(prioridad);
         }
 
-        return ticketRepository.save(existing);
+        Ticket saved = ticketRepository.save(existing);
+
+        // Segunda operación en BD — necesita @Transactional
+        registrarBitacora(saved, saved.getEstado(), saved.getEstado(),
+                usuario, "Ticket actualizado: " + saved.getTitulo());
+
+        return saved;
     }
 
+    @Transactional
     public Ticket updateEstado(Long ticketId, Long estadoId, UserDetails userDetails) {
-
         Ticket ticket = findById(ticketId);
-        Estado anterior = ticket.getEstado();
+        Estado estadoAnterior = ticket.getEstado();
 
-        Estado nuevo = estadoRepository.findById(estadoId)
+        Estado estadoNuevo = estadoRepository.findById(estadoId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Estado no encontrado: " + estadoId));
 
         Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow();
 
-        ticket.setEstado(nuevo);
+        ticket.setEstado(estadoNuevo);
         Ticket saved = ticketRepository.save(ticket);
 
-        registrarBitacora(saved, anterior, nuevo, usuario, "Cambio de estado");
+        // Múltiples operaciones — @Transactional garantiza atomicidad
+        registrarBitacora(saved, estadoAnterior, estadoNuevo, usuario,
+                "Cambio de estado: " +
+                        (estadoAnterior != null ? estadoAnterior.getNombre() : "—") +
+                        " → " + estadoNuevo.getNombre());
 
         return saved;
     }
 
+    @Transactional
     public Ticket asignar(Long ticketId, Long agenteId, UserDetails userDetails) {
-
         Ticket ticket = findById(ticketId);
-        Estado anterior = ticket.getEstado();
+        Estado estadoAnterior = ticket.getEstado();
 
         Usuario agente = usuarioRepository.findById(agenteId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Agente no encontrado"));
+                        HttpStatus.NOT_FOUND, "Agente no encontrado: " + agenteId));
 
-        Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        Usuario solicitante = usuarioRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow();
 
         ticket.setAgente(agente);
 
-        Estado enProceso = estadoRepository.findByNombre("En Proceso")
-                .orElse(null);
-
-        if (enProceso != null) {
-            ticket.setEstado(enProceso);
-        }
+        Estado enProceso = estadoRepository.findByNombre("En Proceso").orElse(null);
+        if (enProceso != null) ticket.setEstado(enProceso);
 
         Ticket saved = ticketRepository.save(ticket);
 
-        registrarBitacora(saved, anterior, enProceso, usuario,
-                "Asignado a agente: " + agente.getNombre());
+        registrarBitacora(saved, estadoAnterior, enProceso, solicitante,
+                "Asignado a: " + agente.getNombre());
 
         return saved;
     }
 
+    // ── ELIMINAR
+    @Transactional
     public void delete(Long id) {
         ticketRepository.delete(findById(id));
     }
 
-    private void registrarBitacora(Ticket ticket,
-                                   Estado anterior,
-                                   Estado nuevo,
-                                   Usuario usuario,
+    private void registrarBitacora(Ticket ticket, Estado anterior,
+                                   Estado nuevo, Usuario usuario,
                                    String comentario) {
+        Bitacora b = new Bitacora();
+        b.setTicket(ticket);
+        b.setUsuario(usuario);
+        b.setEstadoAnterior(anterior);
+        b.setEstadoNuevo(nuevo);
+        b.setComentario(comentario);
+        bitacoraRepository.save(b);
+    }
 
-        Bitacora bitacora = new Bitacora();
-        bitacora.setTicket(ticket);
-        bitacora.setEstadoAnterior(anterior);
-        bitacora.setEstadoNuevo(nuevo);
-        bitacora.setUsuario(usuario);
-        bitacora.setComentario(comentario);
+    @Transactional(readOnly = true)
+    public Page<Ticket> search(String query, Pageable pageable) {
+        return ticketRepository.search(query, pageable);
+    }
 
-        bitacoraRepository.save(bitacora);
+    @Transactional(readOnly = true)
+    public Page<Ticket> findByAgente(Long agenteId, Pageable pageable) {
+        Usuario agente = usuarioRepository.findById(agenteId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Agente no encontrado"));
+        return ticketRepository.findByAgente(agente, pageable);
     }
 }

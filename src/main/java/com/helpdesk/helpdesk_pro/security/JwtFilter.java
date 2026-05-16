@@ -31,10 +31,7 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             String header = request.getHeader("Authorization");
 
-            System.out.println("🔐 HEADER: " + header);
-
             if (header == null || !header.startsWith("Bearer ")) {
-                System.out.println("⛔ No hay token o formato incorrecto");
                 chain.doFilter(request, response);
                 return;
             }
@@ -58,12 +55,14 @@ public class JwtFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     user, null, user.getAuthorities());
+                    System.out.println("🔐 Autoridades del usuario: " + user.getAuthorities());
 
                     auth.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(auth);
-
+                    System.out.println("Contexto autenticado: " + SecurityContextHolder.getContext().getAuthentication());
+                    System.out.println("Autoridades: " + SecurityContextHolder.getContext().getAuthentication().getAuthorities());
                     System.out.println("USUARIO AUTENTICADO CORRECTAMENTE");
                 } else {
                     System.out.println("TOKEN INVÁLIDO");

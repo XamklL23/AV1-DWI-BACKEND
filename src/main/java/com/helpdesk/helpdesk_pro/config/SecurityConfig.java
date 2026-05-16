@@ -16,9 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.*;
-
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -31,48 +28,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm ->
-                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/tickets/**")
-                        .hasAnyRole("ADMIN", "CLIENTE", "AGENTE")
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/*.html").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/assets/**").permitAll()
 
+                        // ── Solo ADMIN (solo para rutas que no tienen @PreAuthorize)
                         .requestMatchers("/api/dashboard/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
 
+                        // ── ADMIN y AGENTE
+                        .requestMatchers(HttpMethod.PATCH, "/api/tickets/*/asignar/*")
+                        .hasAnyRole("ADMIN", "AGENTE")
+
+                        // ── El resto requiere autenticación
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-
-        config.setAllowedOrigins(List.of(
-                "http://127.0.0.1:5500",
-                "http://localhost:5500"
-        ));
-
-        config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
-        ));
-
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/**", config);
-
-        return source;
     }
 
     @Bean
@@ -82,8 +62,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration config
-    ) throws Exception {
+            AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 }

@@ -5,6 +5,8 @@ import com.helpdesk.helpdesk_pro.entity.Usuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
@@ -24,4 +26,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             String cliente,
             Pageable pageable
     );
+
+    @Query("SELECT t FROM Ticket t WHERE " +
+            "LOWER(t.titulo) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "LOWER(t.descripcionInicial) LIKE LOWER(CONCAT('%', :q, '%'))")
+    Page<Ticket> search(@Param("q") String query, Pageable pageable);
 }
