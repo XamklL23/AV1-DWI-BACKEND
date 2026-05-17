@@ -90,25 +90,51 @@ public class TicketService {
     }
 
     @Transactional
-    public Ticket updateEstado(Long ticketId, Long estadoId, UserDetails userDetails) {
+    public Ticket updateEstado(Long ticketId,
+                               Long estadoId,
+                               UserDetails userDetails) {
+
         Ticket ticket = findById(ticketId);
+
         Estado estadoAnterior = ticket.getEstado();
 
         Estado estadoNuevo = estadoRepository.findById(estadoId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Estado no encontrado: " + estadoId));
+                        HttpStatus.NOT_FOUND,
+                        "Estado no encontrado: " + estadoId));
 
-        Usuario usuario = usuarioRepository.findByEmail(userDetails.getUsername())
+        Usuario usuario = usuarioRepository
+                .findByEmail(userDetails.getUsername())
                 .orElseThrow();
 
+        // ── ASIGNAR AGENTE AUTOMÁTICAMENTE ──
+        if (
+                usuario.getRol().name().equals("AGENTE") ||
+                        usuario.getRol().name().equals("ADMIN")
+        ) {
+
+            // solo si aún no tiene agente
+            if (ticket.getAgente() == null) {
+                ticket.setAgente(usuario);
+            }
+        }
+
         ticket.setEstado(estadoNuevo);
+
         Ticket saved = ticketRepository.save(ticket);
 
-        // Múltiples operaciones — @Transactional garantiza atomicidad
-        registrarBitacora(saved, estadoAnterior, estadoNuevo, usuario,
-                "Cambio de estado: " +
-                        (estadoAnterior != null ? estadoAnterior.getNombre() : "—") +
-                        " → " + estadoNuevo.getNombre());
+        registrarBitacora(
+                saved,
+                estadoAnterior,
+                estadoNuevo,
+                usuario,
+                "Cambio de estado: "
+                        + (estadoAnterior != null
+                        ? estadoAnterior.getNombre()
+                        : "—")
+                        + " → "
+                        + estadoNuevo.getNombre()
+        );
 
         return saved;
     }
@@ -167,5 +193,23 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Agente no encontrado"));
         return ticketRepository.findByAgente(agente, pageable);
+    }
+
+    public Usuario getUsuarioByEmail(String email) {
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Ticket> getByCliente(
+            Long clienteId,
+            String estado,
+            String prioridad,
+            Pageable pageable) {
+
+        return ticketRepository.findByClienteUsuarioId(
+                clienteId,
+                pageable
+        );
     }
 }

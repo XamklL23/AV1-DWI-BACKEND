@@ -31,4 +31,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             "LOWER(t.titulo) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
             "LOWER(t.descripcionInicial) LIKE LOWER(CONCAT('%', :q, '%'))")
     Page<Ticket> search(@Param("q") String query, Pageable pageable);
+
+    Page<Ticket> findByClienteUsuarioId(
+            Long clienteId,
+            Pageable pageable
+    );
 }

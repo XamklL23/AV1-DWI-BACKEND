@@ -2,6 +2,7 @@ package com.helpdesk.helpdesk_pro.controller;
 
 import com.helpdesk.helpdesk_pro.dto.request.TicketCreateRequest;
 import com.helpdesk.helpdesk_pro.entity.Ticket;
+import com.helpdesk.helpdesk_pro.repository.TicketRepository;
 import com.helpdesk.helpdesk_pro.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,14 +28,41 @@ public class TicketController {
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) String prioridad,
             @RequestParam(required = false) String search,
-            Pageable pageable) {
+            Pageable pageable,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
+        Page<Ticket> tickets;
+
+        // Si es búsqueda
         if (search != null && !search.isBlank()) {
-            return ResponseEntity.ok(
-                    ticketService.search(search, pageable));
+            tickets = ticketService.search(search, pageable);
+
+        } else {
+
+            // Obtener usuario autenticado
+            var usuario = ticketService.getUsuarioByEmail(userDetails.getUsername());
+
+            // CLIENTE → solo sus tickets
+            if (usuario.getRol().name().equals("CLIENTE")) {
+
+                tickets = ticketService.getByCliente(
+                        usuario.getUsuarioId(),
+                        estado,
+                        prioridad,
+                        pageable
+                );
+
+            } else {
+                // ADMIN / AGENTE → todos
+                tickets = ticketService.getAll(
+                        estado,
+                        prioridad,
+                        pageable
+                );
+            }
         }
-        return ResponseEntity.ok(
-                ticketService.getAll(estado, prioridad, pageable));
+
+        return ResponseEntity.ok(tickets);
     }
 
     // ── GET BY ID ────────────────────────────────────────────
@@ -73,7 +101,7 @@ public class TicketController {
 
     // ── ASIGNAR AGENTE (CON BITÁCORA) ────────────────────────
     @PatchMapping("/{id}/asignar/{agenteId}")
-    @PreAuthorize("hasAnyRole('admin', 'agente')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'AGENTE')")
     public ResponseEntity<Ticket> asignar(
             @PathVariable Long id,
             @PathVariable Long agenteId,
@@ -83,8 +111,9 @@ public class TicketController {
     }
 
     // ── DELETE (solo ADMIN) ───────────────────────────────────
+    // ── DELETE (solo ADMIN) ───────────────────────────────────
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         ticketService.delete(id);
         return ResponseEntity.noContent().build();
